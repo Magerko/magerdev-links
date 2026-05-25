@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#050806">
+  <meta name="color-scheme" content="dark">
+  <title>magerdev — terminal</title>
+  <meta name="description" content="magerdev — разработчик, стример, пауэрлифтер. Все ссылки в одном месте.">
+  <meta property="og:title" content="magerdev — terminal">
+  <meta property="og:description" content="код · стрим · железо. Все ссылки в одном месте.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ru_RU">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23050806'/%3E%3Ctext x='2' y='12' font-family='monospace' font-size='10' font-weight='700' fill='%2375d899'%3E%26gt;_%3C/text%3E%3C/svg%3E">
+
+  <style>
+    :root {
+      --bg:        #050806;
+      --fg:        oklch(0.86 0.12 145);
+      --fg-dim:    oklch(0.62 0.08 145);
+      --fg-mute:   oklch(0.40 0.04 145);
+      --amber:     oklch(0.84 0.13 85);
+      --red:       oklch(0.72 0.18 25);
+      --glow:      0 0 1px currentColor, 0 0 8px color-mix(in oklch, currentColor 18%, transparent);
+      --font:      'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+      --maxw:      820px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); }
+    html { scroll-behavior: smooth; }
+    body {
+      color: var(--fg);
+      font: 14px/1.6 var(--font);
+      min-height: 100dvh;
+      padding: clamp(16px, 4vw, 36px) clamp(14px, 4vw, 32px) 96px;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      caret-color: var(--fg);
+      overflow-x: hidden;
+    }
+    @media (min-width: 720px) { body { font-size: 15px; } }
+
+    /* Subtle scanlines only — no vignette */
+    body::before {
+      content: "";
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(0,0,0,0) 0,
+        rgba(0,0,0,0) 2px,
+        rgba(0,0,0,0.14) 3px,
+        rgba(0,0,0,0) 4px
+      );
+      pointer-events: none;
+      z-index: 50;
+      mix-blend-mode: multiply;
+    }
+
+    main {
+      max-width: var(--maxw);
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+      text-shadow: var(--glow);
+    }
+
+    a { color: inherit; text-decoration: none; }
+    a:focus-visible { outline: 1px solid var(--fg); outline-offset: 2px; }
+
+    /* Header */
+    .head {
+      margin: 0 0 28px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 4px 14px;
+    }
+    .head .name {
+      color: var(--fg);
+      font-weight: 700;
+      font-size: 1.05em;
+    }
+    .head .name::before { content: "> "; color: var(--fg-mute); font-weight: 400; }
+    .head .tag { color: var(--fg-dim); }
+    .head .tag b { color: var(--amber); font-weight: 500; }
+
+    /* Sections */
+    .section { margin: 22px 0; opacity: 0; transform: translateY(2px); }
+    .section.in { opacity: 1; transform: none; transition: opacity 220ms ease, transform 220ms ease; }
+
+    .section h2 {
+      font-size: inherit;
+      font-weight: 500;
+      margin: 0 0 8px;
+      color: var(--fg);
+      letter-spacing: 0.01em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section h2::before { content: ">"; color: var(--fg-mute); font-weight: 400; }
+    .section h2 .rest {
+      flex: 1;
+      border-bottom: 1px dashed var(--fg-mute);
+      height: 0;
+      margin-left: 4px;
+      opacity: .6;
+    }
+    .section h2 .count {
+      color: var(--fg-mute);
+      font-weight: 400;
+      font-size: 0.85em;
+    }
+
+    /* Links */
+    .links {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2px 18px;
+    }
+    @media (min-width: 600px) { .links { grid-template-columns: 1fr 1fr; } }
+
+    .link {
+      display: grid;
+      grid-template-columns: 22px 1fr max-content;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 10px 8px 8px;
+      border: 1px solid transparent;
+      transition: background 80ms linear, border-color 80ms linear;
+      min-height: 36px;
+      position: relative;
+    }
+    .link::before {
+      content: "›";
+      position: absolute;
+      left: -10px;
+      color: var(--fg-mute);
+      opacity: 0;
+      transition: opacity 80ms linear, transform 80ms ease;
+    }
+    .link:hover, .link:focus-visible {
+      background: color-mix(in oklch, var(--fg) 6%, transparent);
+      border-color: color-mix(in oklch, var(--fg) 28%, transparent);
+      outline: none;
+    }
+    .link:hover::before, .link:focus-visible::before { opacity: 1; transform: translateX(2px); }
+    .link .icon {
+      width: 18px; height: 18px;
+      color: var(--fg);
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .link .icon svg { width: 100%; height: 100%; fill: currentColor; display: block; }
+    .link .name {
+      color: var(--fg);
+      letter-spacing: 0.01em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .link .name .sub {
+      color: var(--fg-mute);
+      font-size: 0.85em;
+      margin-left: 4px;
+    }
+    .link .tag {
+      font-size: 0.7em;
+      letter-spacing: 0.14em;
+      padding: 2px 6px;
+      border: 1px solid currentColor;
+      color: var(--red);
+      text-transform: uppercase;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .link .tag.support { color: var(--amber); }
+    .link .tag.live::before {
+      content: "●";
+      margin-right: 4px;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+    /* Contact */
+    .contact {
+      display: grid;
+      gap: 10px;
+      color: var(--fg-dim);
+      border-left: 1px solid var(--fg-mute);
+      padding: 2px 0 2px 16px;
+    }
+    .contact a {
+      color: var(--fg);
+      border-bottom: 1px dotted var(--fg-mute);
+      padding-bottom: 1px;
+    }
+    .contact a:hover, .contact a:focus-visible {
+      border-bottom-color: var(--fg);
+      outline: none;
+    }
+    .contact small { color: var(--fg-mute); font-size: 0.9em; }
+    .contact .warn { color: var(--amber); }
+
+    /* CLI output */
+    #output {
+      white-space: pre-wrap;
+      margin: 18px 0 4px;
+      word-break: break-word;
+    }
+    #output > div { margin-bottom: 4px; }
+    #output .cmd { color: var(--fg); }
+    #output .cmd .ps1 { color: var(--amber); }
+    #output .out { color: var(--fg-dim); display: block; }
+    #output .out b { color: var(--fg); font-weight: 500; }
+    #output .err { color: var(--red); display: block; }
+    #output .ok  { color: var(--amber); display: block; }
+
+    /* Prompt */
+    .prompt {
+      display: flex;
+      align-items: center;
+      margin-top: 6px;
+      position: sticky;
+      bottom: 0;
+      background: linear-gradient(to top, var(--bg) 70%, transparent);
+      padding: 10px 0 14px;
+    }
+    .prompt .ps1 {
+      color: var(--amber);
+      margin-right: 10px;
+      white-space: nowrap;
+      flex: none;
+    }
+    .prompt input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--fg);
+      font: inherit;
+      outline: none;
+      caret-color: transparent;
+      padding: 0;
+      min-width: 0;
+      text-shadow: var(--glow);
+    }
+    .prompt .cursor {
+      display: inline-block;
+      width: 0.55em;
+      height: 1.05em;
+      background: var(--fg);
+      animation: blink 1.05s steps(2, jump-none) infinite;
+      box-shadow: var(--glow);
+      flex: none;
+      margin-left: 1px;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .hint {
+      color: var(--fg-mute);
+      font-size: 0.85em;
+      margin: 4px 0 0;
+      line-height: 1.5;
+    }
+    .hint kbd {
+      font: inherit;
+      border: 1px solid var(--fg-mute);
+      padding: 0 5px;
+      border-radius: 2px;
+      color: var(--fg-dim);
+    }
+
+    .section.flash { animation: flash 700ms ease-out 1; }
+    @keyframes flash {
+      0%   { background: color-mix(in oklch, var(--fg) 14%, transparent); }
+      100% { background: transparent; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+      html { scroll-behavior: auto; }
+      .section { opacity: 1; transform: none; }
+      .prompt .cursor { animation: none; opacity: 1; }
+      body::before { display: none; }
+    }
+
+    ::selection { background: var(--fg); color: var(--bg); text-shadow: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="head">
+      <span class="name">magerdev</span>
+      <span class="tag"><b>код</b> · <b>стрим</b> · <b>железо</b></span>
+    </header>
+
+    <section class="section" id="sec-streams" data-name="streams">
+      <h2>стримы <span class="rest"></span><span class="count">3</span></h2>
+      <ul class="links">
+        <li><a class="link" href="https://kick.com/magerdev1" target="_blank" rel="noopener noreferrer" data-id="kick">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h5v5h2V7h2V4h5v3h2v3h2v4h-2v3h-2v3h-5v-3h-2v-3H9v5H4z"/></svg></span>
+          <span class="name">Kick<span class="sub">/magerdev1</span></span>
+          <span class="tag live">live</span>
+        </a></li>
+        <li><a class="link" href="https://www.twitch.tv/magerdev1" target="_blank" rel="noopener noreferrer" data-id="twitch">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 3 2 6v13h4v3l4-3h4l6-6V3zm14 9-3 3h-4l-3 3v-3H5V5h13zM11 7h2v6h-2zm5 0h2v6h-2z" fill-rule="evenodd"/></svg></span>
+          <span class="name">Twitch<span class="sub">/magerdev1</span></span>
+          <span class="tag live">live</span>
+        </a></li>
+        <li><a class="link" href="https://www.youtube.com/@magerdev1" target="_blank" rel="noopener noreferrer" data-id="youtube">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M23 7.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.3-1C16.8 3.6 12 3.6 12 3.6s-4.8 0-7.8.3c-.4 0-1.4 0-2.3 1C1.2 5.6 1 7.2 1 7.2S.8 9 .8 10.9v2c0 1.9.2 3.7.2 3.7s.2 1.6.9 2.3c.9.9 2 .9 2.5 1 1.8.2 7.6.3 7.6.3s4.8 0 7.8-.3c.4 0 1.4 0 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.8.2-3.7v-2c0-1.9-.2-3.7-.2-3.7zM9.7 14.6V8.4l6.3 3.1z"/></svg></span>
+          <span class="name">YouTube<span class="sub">/@magerdev1</span></span>
+        </a></li>
+      </ul>
+    </section>
+
+    <section class="section" id="sec-social" data-name="social">
+      <h2>соцсети <span class="rest"></span><span class="count">5</span></h2>
+      <ul class="links">
+        <li><a class="link" href="https://t.me/magerdev1" target="_blank" rel="noopener noreferrer" data-id="telegram">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M22.2 2.7 1.7 10.6c-1.4.6-1.4 1.4-.3 1.7l5.2 1.7 2 6.1c.3.7.5 1 1.1 1 .5 0 .8-.3 1.2-.7l3-2.9 5.2 3.8c1 .5 1.6.3 1.9-.9L23.5 4.3c.3-1.4-.6-2-1.3-1.6zM17 7.4 8.9 14.7l-.3 3.6L7 13.3 17 6.8c.5-.3.9.1.5.4z"/></svg></span>
+          <span class="name">Telegram<span class="sub">канал</span></span>
+        </a></li>
+        <li><a class="link" href="https://discord.com/invite/Qnwbh8bmQk" target="_blank" rel="noopener noreferrer" data-id="discord">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.5 4.6A17 17 0 0 0 15.2 3.3l-.5 1a16 16 0 0 0-5.4 0l-.5-1A17 17 0 0 0 4.5 4.6 17.5 17.5 0 0 0 1.4 16a17 17 0 0 0 5.2 2.6l1.1-1.9c-.6-.2-1.2-.5-1.7-.8l.4-.3a12.2 12.2 0 0 0 11.2 0l.4.3c-.5.3-1.1.6-1.7.8l1.1 1.9A17 17 0 0 0 22.6 16 17.5 17.5 0 0 0 19.5 4.6zM8.6 14c-1 0-1.9-1-1.9-2.2 0-1.2.8-2.2 1.9-2.2s1.9 1 1.9 2.2c0 1.2-.9 2.2-1.9 2.2zm6.8 0c-1 0-1.9-1-1.9-2.2 0-1.2.8-2.2 1.9-2.2s1.9 1 1.9 2.2c0 1.2-.8 2.2-1.9 2.2z"/></svg></span>
+          <span class="name">Discord<span class="sub">сервер</span></span>
+        </a></li>
+        <li><a class="link" href="https://www.instagram.com/magerdev1" target="_blank" rel="noopener noreferrer" data-id="instagram">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3zm10.5 1.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></span>
+          <span class="name">Instagram<span class="sub">/magerdev1</span></span>
+        </a></li>
+        <li><a class="link" href="https://www.tiktok.com/@magerdev" target="_blank" rel="noopener noreferrer" data-id="tiktok">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 2h3v3a5 5 0 0 0 4 5v3a8 8 0 0 1-4-1.2V17a6 6 0 1 1-6-6h1v3h-1a3 3 0 1 0 3 3V2z"/></svg></span>
+          <span class="name">TikTok<span class="sub">/@magerdev</span></span>
+        </a></li>
+        <li><a class="link" href="https://www.tiktok.com/@magerdev1_live" target="_blank" rel="noopener noreferrer" data-id="tiktoklive">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 2h3v3a5 5 0 0 0 4 5v3a8 8 0 0 1-4-1.2V17a6 6 0 1 1-6-6h1v3h-1a3 3 0 1 0 3 3V2z"/></svg></span>
+          <span class="name">TikTok Live<span class="sub">/@magerdev1_live</span></span>
+          <span class="tag live">live</span>
+        </a></li>
+      </ul>
+    </section>
+
+    <section class="section" id="sec-support" data-name="support">
+      <h2>поддержать <span class="rest"></span><span class="count">2</span></h2>
+      <ul class="links">
+        <li><a class="link" href="https://donatepay.eu/don/34347" target="_blank" rel="noopener noreferrer" data-id="donatepay">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M11 2h2v2h4v2h-6a2 2 0 0 0 0 4h2a4 4 0 0 1 0 8h-2v2h-2v-2H7v-2h6a2 2 0 0 0 0-4h-2a4 4 0 0 1 0-8h0V2z"/></svg></span>
+          <span class="name">DonatePay<span class="sub">/don/34347</span></span>
+          <span class="tag support">$</span>
+        </a></li>
+        <li><a class="link" href="https://donatello.to/magerdev1" target="_blank" rel="noopener noreferrer" data-id="donatello">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M11 2h2v2h4v2h-6a2 2 0 0 0 0 4h2a4 4 0 0 1 0 8h-2v2h-2v-2H7v-2h6a2 2 0 0 0 0-4h-2a4 4 0 0 1 0-8h0V2z"/></svg></span>
+          <span class="name">Donatello<span class="sub">/magerdev1</span></span>
+          <span class="tag support">$</span>
+        </a></li>
+      </ul>
+    </section>
+
+    <section class="section" id="sec-contact" data-name="contact">
+      <h2>контакты <span class="rest"></span><span class="count">2</span></h2>
+      <div class="contact">
+        <div>
+          <a href="mailto:magerkopython@gmail.com" data-id="email">magerkopython@gmail.com</a>
+          <br><small><span class="warn">только реклама / работа.</span> личку игнорю — пиши в Telegram или Discord.</small>
+        </div>
+        <div>
+          <a href="https://t.me/magerdev_bot" target="_blank" rel="noopener noreferrer" data-id="bot">@magerdev_bot</a>
+          <br><small>telegram-бот</small>
+        </div>
+      </div>
+    </section>
+
+    <div id="output" aria-live="polite" aria-atomic="false"></div>
+
+    <form class="prompt" id="prompt" autocomplete="off">
+      <label for="cli" class="ps1">magerdev:~$</label>
+      <input id="cli" name="cli" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="консоль">
+      <span class="cursor" aria-hidden="true"></span>
+    </form>
+    <p class="hint">
+      набери <kbd>help</kbd> · история — <kbd>↑</kbd>/<kbd>↓</kbd> · автодополнение — <kbd>Tab</kbd> · или просто кликни ссылку выше
+    </p>
+  </main>
+
+  <script>
+  (() => {
+    'use strict';
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const $output  = document.getElementById('output');
+    const $prompt  = document.getElementById('prompt');
+    const $cli     = document.getElementById('cli');
+
+    // Reveal sections on load (no boot sequence)
+    const sections = document.querySelectorAll('.section');
+    sections.forEach((el, i) => {
+      if (reduceMotion) { el.classList.add('in'); return; }
+      setTimeout(() => el.classList.add('in'), 40 * i);
+    });
+
+    // Links registry — used by CLI
+    const LINKS = {
+      kick:       { url: 'https://kick.com/magerdev1',                label: 'Kick' },
+      twitch:     { url: 'https://www.twitch.tv/magerdev1',           label: 'Twitch' },
+      youtube:    { url: 'https://www.youtube.com/@magerdev1',        label: 'YouTube' },
+      telegram:   { url: 'https://t.me/magerdev1',                    label: 'Telegram' },
+      discord:    { url: 'https://discord.com/invite/Qnwbh8bmQk',     label: 'Discord' },
+      instagram:  { url: 'https://www.instagram.com/magerdev1',       label: 'Instagram' },
+      tiktok:     { url: 'https://www.tiktok.com/@magerdev',          label: 'TikTok' },
+      tiktoklive: { url: 'https://www.tiktok.com/@magerdev1_live',    label: 'TikTok Live' },
+      donatepay:  { url: 'https://donatepay.eu/don/34347',            label: 'DonatePay' },
+      donatello:  { url: 'https://donatello.to/magerdev1',            label: 'Donatello' },
+      bot:        { url: 'https://t.me/magerdev_bot',                 label: '@magerdev_bot' },
+      email:      { url: 'mailto:magerkopython@gmail.com',            label: 'business email' },
+    };
+
+    const GROUPS = {
+      streams: ['kick', 'twitch', 'youtube'],
+      social:  ['telegram', 'discord', 'instagram', 'tiktok', 'tiktoklive'],
+      support: ['donatepay', 'donatello'],
+      contact: ['email', 'bot'],
+    };
+
+    const FORTUNES = [
+      'стамина важна только в реале.',
+      'praise the sun, потом пожми.',
+      'компилится — катим, поднимается — едим.',
+      'нет шорткатов. нет чекпоинтов. нет дня отдыха.',
+      '404: мотивация не найдена. fallback → дисциплина.',
+      'ещё один повтор. ещё один коммит. ещё один босс.',
+      'бой начинается, когда заканчивается смена.',
+      'эстус — это креатин в лоре.',
+    ];
+
+    const ABOUT = [
+      'magerdev — разработчик · стример · пауэрлифтер.',
+      '',
+      '  · днём: код. python и всё, что огрызается в ответ.',
+      '  · вечером: стримы на kick/twitch — souls-like, devil may cry,',
+      '    всё с окном для парирования.',
+      '  · выходные: штанга. присед, жим, тяга. повторить.',
+      '',
+      'этот терминал — все места, где я живу онлайн.',
+      'кликай ссылки выше или набирай `open <name>` (попробуй `open kick`).',
+    ];
+
+    const cmdList = [
+      'help', 'ls', 'open', 'whoami', 'neofetch', 'cat', 'streams',
+      'social', 'support', 'contact', 'date', 'echo', 'clear',
+      'history', 'fortune', 'pwd', 'sudo', 'exit',
+    ];
+
+    const HELP = (
+`команды:
+
+  help               эта справка
+  ls [секция]        список ссылок: streams · social · support · contact · all
+  open <имя>         открыть ссылку в новой вкладке (пример: open kick)
+  whoami             кто такой magerdev
+  neofetch           инфа о системе
+  cat about          про меня подробнее
+  streams|social|…   прыгнуть в секцию
+  fortune            случайная цитата
+  history            предыдущие команды
+  date               текущая дата/время
+  echo <текст>       напечатать текст
+  clear              очистить вывод
+
+ссылки по имени:
+  ${Object.keys(LINKS).join(', ')}`
+    );
+
+    const history = [];
+    let histIdx = -1;
+
+    const escapeHtml = s => s.replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+
+    function print(html, cls) {
+      const div = document.createElement('div');
+      if (cls) div.className = cls;
+      div.innerHTML = html;
+      $output.appendChild(div);
+      requestAnimationFrame(() => {
+        $prompt.scrollIntoView({ block: 'end', behavior: reduceMotion ? 'auto' : 'smooth' });
+      });
+    }
+    const printOut = t => print(`<span class="out">${escapeHtml(t)}</span>`);
+    const printErr = t => print(`<span class="err">${escapeHtml(t)}</span>`);
+    const printOk  = t => print(`<span class="ok">${escapeHtml(t)}</span>`);
+
+    function printCommand(raw) {
+      const div = document.createElement('div');
+      div.className = 'cmd';
+      div.innerHTML = `<span class="ps1">magerdev:~$</span> ${escapeHtml(raw)}`;
+      $output.appendChild(div);
+    }
+
+    function jumpTo(name) {
+      const el = document.getElementById('sec-' + name);
+      if (!el) { printErr(`нет секции: ${name}`); return; }
+      el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      el.classList.remove('flash');
+      void el.offsetWidth;
+      el.classList.add('flash');
+      printOk(`→ ${name}`);
+    }
+
+    function lsSection(name) {
+      const ids = GROUPS[name];
+      if (!ids) return null;
+      const lines = ids.map(id => {
+        const l = LINKS[id];
+        return `  ${id.padEnd(11)} ${l.label.padEnd(14)} ${l.url}`;
+      });
+      return `${name}/\n${lines.join('\n')}`;
+    }
+
+    function neofetchText() {
+      return (
+`user        : magerdev@crt
+os          : phosphorOS 4.04 LTS (x86_64)
+shell       : /bin/zsh
+uptime      : 1RM and counting
+cpu         : focus @ 4.0GHz · stamina: full
+memory      : git · vim · plates
+now playing : dark souls · devil may cry
+status      : online · soul level 24`
+      );
+    }
+
+    function execute(rawInput) {
+      const raw = rawInput.trim();
+      if (!raw) { printCommand(''); return; }
+      printCommand(raw);
+      history.push(raw);
+      histIdx = history.length;
+
+      const parts = raw.split(/\s+/);
+      const cmd = parts[0].toLowerCase();
+      const arg = parts.slice(1).join(' ');
+      const arg0 = parts[1] ? parts[1].toLowerCase() : '';
+
+      switch (cmd) {
+        case 'help':
+        case '?':
+          printOut(HELP);
+          break;
+
+        case 'ls': {
+          if (!arg || arg0 === 'all') {
+            const blocks = ['streams','social','support','contact']
+              .map(g => lsSection(g)).join('\n\n');
+            printOut(blocks);
+          } else if (GROUPS[arg0]) {
+            printOut(lsSection(arg0));
+          } else {
+            printErr(`ls: нет такой секции: ${arg0}. доступно: streams, social, support, contact, all`);
+          }
+          break;
+        }
+
+        case 'open': {
+          if (!arg0) { printErr('open: нужно имя. пример: open kick'); break; }
+          const link = LINKS[arg0];
+          if (!link) {
+            printErr(`open: неизвестная ссылка: ${arg0}. имена: ${Object.keys(LINKS).join(', ')}`);
+            break;
+          }
+          if (link.url.startsWith('mailto:')) {
+            window.location.href = link.url;
+            printOk(`mail → ${link.label}`);
+          } else {
+            const w = window.open(link.url, '_blank', 'noopener,noreferrer');
+            if (!w) printErr('open: всплывающее окно заблокировано. кликни ссылку в списке.');
+            else printOk(`открыто ${link.label} → ${link.url}`);
+          }
+          break;
+        }
+
+        case 'whoami':
+          printOut('magerdev — разработчик · стример · пауэрлифтер.');
+          break;
+
+        case 'neofetch':
+          printOut(neofetchText());
+          break;
+
+        case 'cat': {
+          if (['about','about.txt','readme','readme.md'].includes(arg0)) {
+            printOut(ABOUT.join('\n'));
+          } else if (!arg0) {
+            printErr('cat: нужен файл. пример: cat about');
+          } else {
+            printErr(`cat: ${arg0}: нет такого файла. попробуй: about`);
+          }
+          break;
+        }
+
+        case 'streams':
+        case 'social':
+        case 'support':
+        case 'contact':
+          jumpTo(cmd);
+          break;
+
+        case 'date':   printOut(new Date().toString()); break;
+        case 'echo':   printOut(arg); break;
+        case 'fortune':printOut(FORTUNES[Math.floor(Math.random() * FORTUNES.length)]); break;
+        case 'history':printOut(history.map((c, i) => `  ${String(i+1).padStart(3)}  ${c}`).join('\n')); break;
+
+        case 'clear':
+        case 'cls':
+          $output.innerHTML = '';
+          break;
+
+        case 'pwd':    printOut('/home/magerdev'); break;
+        case 'sudo':   printErr('не сегодня.'); break;
+
+        case 'exit':
+        case 'logout':
+        case 'quit':
+          printOut('permission denied: этот терминал — навсегда.');
+          break;
+
+        case 'rm':
+          if (arg.includes('-rf') && arg.includes('/')) {
+            printErr('rm: отказ удалить /: завтра тренировка.');
+          } else {
+            printErr(`rm: cannot remove ${arg0 || '...'}: read-only file system.`);
+          }
+          break;
+
+        default:
+          printErr(`${cmd}: команда не найдена. набери help.`);
+      }
+    }
+
+    function complete() {
+      const value = $cli.value;
+      const parts = value.split(/\s+/);
+      if (parts.length <= 1) {
+        const stem = parts[0] || '';
+        const matches = cmdList.filter(c => c.startsWith(stem));
+        if (matches.length === 1) $cli.value = matches[0] + ' ';
+        else if (matches.length > 1) { printCommand(value); printOut(matches.join('  ')); }
+        return;
+      }
+      const head = parts[0].toLowerCase();
+      const stem = parts[parts.length - 1].toLowerCase();
+      let pool = [];
+      if (head === 'open')      pool = Object.keys(LINKS);
+      else if (head === 'ls')   pool = ['streams','social','support','contact','all'];
+      else if (head === 'cat')  pool = ['about'];
+      if (!pool.length) return;
+      const matches = pool.filter(c => c.startsWith(stem));
+      if (matches.length === 1) {
+        parts[parts.length - 1] = matches[0];
+        $cli.value = parts.join(' ');
+      } else if (matches.length > 1) {
+        printCommand(value); printOut(matches.join('  '));
+      }
+    }
+
+    $prompt.addEventListener('submit', e => {
+      e.preventDefault();
+      const v = $cli.value;
+      $cli.value = '';
+      execute(v);
+    });
+
+    $cli.addEventListener('keydown', e => {
+      if (e.key === 'ArrowUp') {
+        if (history.length === 0) return;
+        e.preventDefault();
+        histIdx = Math.max(0, histIdx - 1);
+        $cli.value = history[histIdx] || '';
+        requestAnimationFrame(() => $cli.setSelectionRange($cli.value.length, $cli.value.length));
+      } else if (e.key === 'ArrowDown') {
+        if (history.length === 0) return;
+        e.preventDefault();
+        histIdx = Math.min(history.length, histIdx + 1);
+        $cli.value = history[histIdx] || '';
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        complete();
+      } else if (e.key === 'l' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        $output.innerHTML = '';
+      } else if (e.key === 'c' && e.ctrlKey) {
+        e.preventDefault();
+        printCommand($cli.value);
+        printOut('^C');
+        $cli.value = '';
+      }
+    });
+
+    // Click on empty area focuses prompt
+    document.addEventListener('click', e => {
+      if (e.target.closest('a, button, input, label, textarea')) return;
+      const sel = window.getSelection();
+      if (sel && sel.toString().length > 0) return;
+      $cli.focus({ preventScroll: true });
+    });
+  })();
+  </script>
+</body>
+</html>
